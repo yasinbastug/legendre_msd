@@ -1,0 +1,7 @@
+numpy
+pandas
+matplotlib
+# torch is required only for the Brownian-motion simulator (main.py) and the
+# full Legendre-Viterbi detector (legendre_viterbi_full.py). The memoryless
+# Legendre, count-Viterbi, hybrid, and fixed-threshold detectors run without it.
+torch

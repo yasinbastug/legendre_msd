@@ -1,0 +1,19 @@
+{
+  "experiment_id":"figure_3_ts_sweep__ts0p2-0p3-0p4-0p5__memERFCpHit0p75__nbits100000__ntx100__seed2026__vmt25__svmt25",
+  "experiment_type":"ts_sweep",
+  "ts_values":[
+    0.2,
+    0.3,
+    0.4,
+    0.5
+  ],
+  "memory_rule":"per TS: smallest positive multiple of TS satisfying erfc((d-r)\/sqrt(4Dt)) > target",
+  "memory_hit_probability_target":0.75,
+  "n_bits":100000,
+  "N_Tx_values":[
+    100
+  ],
+  "seed":2026,
+  "max_viterbi_memory_taps":25,
+  "max_strong_viterbi_memory_taps":25
+}

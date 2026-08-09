@@ -1,0 +1,26 @@
+{
+  "experiment_id":"figures__ts0p2__memERFC3p6__pHit0p75__nbits10000__ntx25to250step25__seed2026__vmt25__svmt25",
+  "experiment_type":"baseline_ntx_sweep",
+  "ts":0.2,
+  "memory":3.6,
+  "memory_taps":18,
+  "memory_rule":"smallest positive multiple of TS satisfying erfc((d-r)\/sqrt(4Dt)) > target",
+  "memory_hit_probability_target":0.75,
+  "memory_achieved_hit_probability":0.7537652254,
+  "n_bits":10000,
+  "N_Tx_values":[
+    25,
+    50,
+    75,
+    100,
+    125,
+    150,
+    175,
+    200,
+    225,
+    250
+  ],
+  "seed":2026,
+  "max_viterbi_memory_taps":25,
+  "max_strong_viterbi_memory_taps":25
+}
