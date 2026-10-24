@@ -129,6 +129,6 @@ simulated, and the full detector shifted arrival-time bins by one when a symbol
 had no arrival in the first bin. At `N_Tx = 100`, `T_s = 0.2 s` the corrected
 BERs are within 0.006 of the submitted ones.
 
-## Citation
+## Citation and license
 
-See `CITATION.cff`.
+See `CITATION.cff` for how to cite. The code is released under the MIT License (`LICENSE`).
