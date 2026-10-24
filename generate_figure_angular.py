@@ -44,13 +44,14 @@ import numpy as np
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_SIM_DIR = SCRIPT_DIR / "simulations"
-DEFAULT_OUT = SCRIPT_DIR.parent / "plots" / "figure_angular_surface_density_5taps.pdf"
+DEFAULT_OUT = SCRIPT_DIR / "plots" / "figure_angular_surface_density_5taps_v3.pdf"
 
 sys.path.insert(0, str(SCRIPT_DIR))
-from legendre import load_hits_file  # noqa: E402
+from legendre import _trapz, load_hits_file  # noqa: E402
 from main import (  # noqa: E402
     experiment_save_hits_indexed,
     float_tag,
+    pool_horizon,
     raw_tag,
 )
 
@@ -105,7 +106,7 @@ def reflected_gaussian_kde_z(
     density = kernel.sum(axis=0) / float(len(values_z))
 
     # Numerical renormalization over z in [-1, 1].
-    area = np.trapz(density, grid_z)
+    area = _trapz(density, grid_z)
     if area > 0.0:
         density = density / area
 
@@ -390,21 +391,21 @@ def distribution_candidates(
     memory: float,
     n_emit_distribution: int,
 ) -> list[Path]:
-    """Candidate distribution .pt files."""
+    """Distribution .pt files of this channel (same d, r, D, dt) covering `memory` s.
+
+    Pools of a different geometry are never used; among valid ones the
+    shortest horizon comes first.
+    """
     sim_dir = Path(sim_dir)
-    raw = raw_tag(distance, radius, diffusion_coef, step_time, memory)
-    preferred = sim_dir / f"Hits_distribution_{raw}_N{n_emit_distribution}.pt"
-
-    paths: list[Path] = []
-
-    if preferred.exists():
-        paths.append(preferred)
-
-    paths.extend(Path(p) for p in glob.glob(str(sim_dir / f"Hits_distribution_{raw}_N*.pt")))
-    paths.extend(Path(p) for p in glob.glob(str(sim_dir / f"Hits_distribution_{raw}_TS*_MT*_N*.pt")))
-    paths.extend(Path(p) for p in glob.glob(str(sim_dir / f"Hits_distribution_d_{float_tag(distance)}*.pt")))
-
-    return sorted({p.resolve() for p in paths})
+    channel = (
+        f"d_{float_tag(distance)}_r{float_tag(radius)}"
+        f"_D{float_tag(diffusion_coef)}_dt{float_tag(step_time)}"
+    )
+    paths = {
+        Path(p).resolve() for p in glob.glob(str(sim_dir / f"Hits_distribution_{channel}_MEM*.pt"))
+        if (pool_horizon(p) or 0.0) + 1e-9 >= float(memory)
+    }
+    return sorted(paths, key=lambda p: (pool_horizon(p), p.name))
 
 
 def resolve_hits_file(args: argparse.Namespace) -> Path:
@@ -487,9 +488,10 @@ def parse_args() -> argparse.Namespace:
         help="Number of consecutive TS taps to plot (max %d; default through 4 Ts-5 Ts)."
         % len(TAP_COLORS),
     )
-    p.add_argument("--memory", type=float, default=5.0, help="Brownian horizon for distribution file tag [s].")
+    p.add_argument("--memory", type=float, default=None,
+                   help="minimum simulated horizon [s] (default: n_taps * ts)")
     p.add_argument("--distance", type=float, default=12.5)
-    p.add_argument("--radius", type=float, default=6.0)
+    p.add_argument("--radius", type=float, default=5.0)
     p.add_argument("--diffusion-coef", type=float, default=79.4)
     p.add_argument("--step-time", type=float, default=1e-4)
     p.add_argument("--n-emit-distribution", type=int, default=1_000_000)
@@ -537,7 +539,9 @@ def main() -> None:
         raise ValueError(f"--n-taps={args.n_taps} exceeds the {len(TAP_COLORS)} configured tap colors.")
 
     total_window = args.n_taps * args.ts
-    if total_window > args.memory:
+    if args.memory is None:
+        args.memory = total_window
+    if total_window > args.memory + 1e-9:
         raise ValueError(
             f"n_taps * ts = {total_window:g} s exceeds --memory = {args.memory:g} s. "
             "Increase --memory or reduce --n-taps / --ts."

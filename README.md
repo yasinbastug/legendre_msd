@@ -44,9 +44,10 @@ python -m pytest tests
 ## Reproducing the results
 
 ```bash
-./run_all.sh paper        # Figs. 2-4 of the paper
-./run_all.sh reviewer     # all revision experiments
-python make_figures.py    # redraw the paper figures from the results
+python generate_figure_angular.py   # Fig. 1 (angular surface density, from one hit pool)
+./run_all.sh paper                  # results for Figs. 2-4 of the paper
+./run_all.sh reviewer               # all revision experiments
+python make_figures.py              # draw Figs. 2-5 and all experiment plots from the results
 ```
 
 `./run_all.sh` lists all groups. Each experiment writes
