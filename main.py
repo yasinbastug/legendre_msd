@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 import glob
 import math
+import re
 import time
 
 import numpy as np
@@ -71,6 +72,14 @@ def generate_received_symbols_from_indexed_impulse(
             f"but the pool only contains {hits['nof_molecules']}."
         )
 
+    # The pool is sorted by molecule index, so the hits of bit k occupy one
+    # contiguous slice; locate all slices once instead of scanning the pool
+    # for every (symbol, tap) pair.
+    if np.any(np.diff(idx_imp) < 0):
+        order = np.argsort(idx_imp, kind="stable")
+        t_imp, xyz_imp, idx_imp = t_imp[order], xyz_imp[order], idx_imp[order]
+    bit_start = np.searchsorted(idx_imp, np.arange(len(bits) + 1, dtype=np.int64) * int(n_emit_bit))
+
     received_symbol_hits = []
     for n in range(len(bits)):
         collected_t_rel, collected_xyz, collected_source_bit, collected_tap = [], [], [], []
@@ -78,17 +87,11 @@ def generate_received_symbols_from_indexed_impulse(
             k = n - tap
             if k < 0 or bits[k] == 0:
                 continue
-            idx_low = k * int(n_emit_bit)
-            idx_high = (k + 1) * int(n_emit_bit)
+            lo, hi = bit_start[k], bit_start[k + 1]
             t_low = tap * ts
             t_high = (tap + 1) * ts
-            mask = (
-                (idx_imp >= idx_low)
-                & (idx_imp < idx_high)
-                & (t_imp >= t_low)
-                & (t_imp < t_high)
-            )
-            selected = np.flatnonzero(mask)
+            t_k = t_imp[lo:hi]
+            selected = lo + np.flatnonzero((t_k >= t_low) & (t_k < t_high))
             if len(selected) == 0:
                 continue
             collected_t_rel.append(t_imp[selected] - t_low)
@@ -113,6 +116,41 @@ def generate_received_symbols_from_indexed_impulse(
             }
         )
     return received_symbol_hits
+
+
+def add_background_noise(
+    received_symbol_hits: list[dict[str, np.ndarray | int]],
+    lambda_env: float,
+    ts: float,
+    radius: float,
+    seed: int,
+) -> list[dict[str, np.ndarray | int]]:
+    """Add environmental noise molecules to each symbol observation.
+
+    Matches the q_env model of the detectors: per symbol, Poisson(lambda_env)
+    extra absorptions, uniform over the Rx surface and uniform in [0, ts).
+    Noise molecules are tagged with source_bit = -1 and tap = -1.
+    """
+    if lambda_env <= 0:
+        return received_symbol_hits
+
+    rng = np.random.default_rng(seed)
+    noisy = []
+    for obs in received_symbol_hits:
+        n_env = int(rng.poisson(lambda_env))
+        g = rng.standard_normal((n_env, 3))
+        xyz_env = float(radius) * g / np.linalg.norm(g, axis=1, keepdims=True)
+        t_env = rng.uniform(0.0, float(ts), size=n_env)
+        noisy.append(
+            {
+                "rx_symbol": obs["rx_symbol"],
+                "t_rel": np.concatenate([obs["t_rel"], t_env]),
+                "xyz": np.vstack([obs["xyz"], xyz_env]),
+                "source_bit": np.concatenate([obs["source_bit"], np.full(n_env, -1, dtype=np.int64)]),
+                "tap": np.concatenate([obs["tap"], np.full(n_env, -1, dtype=np.int64)]),
+            }
+        )
+    return noisy
 
 
 
@@ -154,7 +192,12 @@ def experiment_save_hits_indexed(
         return Path(filename)
 
     if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
     radius_t = torch.as_tensor(radius, device=device, dtype=torch.float32)
     diffusion_coef_t = torch.as_tensor(diffusion_coef, device=device, dtype=torch.float32)
     nof_steps = int(math.ceil(float(total_time) / float(step_time)))
@@ -217,60 +260,56 @@ def experiment_save_hits_indexed(
     print(f"Saved Brownian hit file with {total_hits:,} hits: {filename}")
     return Path(filename)
 
-def find_compatible_bit_pool_file(args: argparse.Namespace) -> Path:
-    preferred = Path(args.sim_dir) / (
-        f"Hits_bit_pool_indexed_{raw_tag(args.distance, args.radius, args.diffusion_coef, args.step_time, args.memory)}"
-        f"_N{args.bit_pool_capacity}.pt"
-    )
-    if preferred.exists():
-        return preferred
+def pool_horizon(path: str | Path) -> float | None:
+    """Simulated time horizon of a hit pool, read from its _MEM<x> filename tag."""
+    m = re.search(r"_MEM([0-9p]+)", Path(path).name)
+    return float(m.group(1).replace("p", ".")) if m else None
 
-    candidates = []
-    raw = raw_tag(args.distance, args.radius, args.diffusion_coef, args.step_time, args.memory)
-    candidates.extend(glob.glob(str(Path(args.sim_dir) / f"Hits_bit_pool_indexed_{raw}_N*.pt")))
-    candidates.extend(glob.glob(str(Path(args.sim_dir) / f"Hits_bit_pool_indexed_{raw}_TS*_MT*_N*.pt")))
-    candidates.extend(glob.glob(str(Path(args.sim_dir) / f"Hits_bit_pool_indexed_d_{float_tag(args.distance)}*.pt")))
-    if not candidates:
-        print(f"No compatible indexed bit-pool found. Generating: {preferred}")
-        return experiment_save_hits_indexed(
-            filename=preferred,
-            radius=args.radius,
-            total_time=args.memory,
-            step_time=args.step_time,
-            diffusion_coef=args.diffusion_coef,
-            distance=args.distance,
-            nof_molecules=max(args.bit_pool_capacity, args.n_bits * args.n_emit_bit),
-            batch_size=args.brownian_batch_size,
-        )
-    return Path(sorted(set(candidates))[-1])
+
+def _find_or_generate_pool(args: argparse.Namespace, prefix: str, nof_molecules: int, capacity_tag: int) -> Path:
+    """Return a hit pool for this channel whose horizon covers args.memory.
+
+    Any pool with the same d, r, D, dt and a horizon >= args.memory is valid,
+    since hits after args.memory are ignored downstream. A shorter pool is never
+    used: it would silently drop the late ISI taps. If none exists, one is
+    simulated with horizon args.memory.
+    """
+    channel = (
+        f"d_{float_tag(args.distance)}_r{float_tag(args.radius)}"
+        f"_D{float_tag(args.diffusion_coef)}_dt{float_tag(args.step_time)}"
+    )
+    preferred = Path(args.sim_dir) / (
+        f"{prefix}_{raw_tag(args.distance, args.radius, args.diffusion_coef, args.step_time, args.memory)}"
+        f"_N{capacity_tag}.pt"
+    )
+    candidates = [
+        Path(c) for c in glob.glob(str(Path(args.sim_dir) / f"{prefix}_{channel}_MEM*.pt"))
+        if (pool_horizon(c) or 0.0) + 1e-9 >= float(args.memory)
+    ]
+    if candidates:
+        # Shortest sufficient horizon loads fastest.
+        return min(candidates, key=lambda c: (pool_horizon(c), c.name))
+
+    print(f"No hit pool covering {args.memory} s found. Generating: {preferred}")
+    return experiment_save_hits_indexed(
+        filename=preferred,
+        radius=args.radius,
+        total_time=args.memory,
+        step_time=args.step_time,
+        diffusion_coef=args.diffusion_coef,
+        distance=args.distance,
+        nof_molecules=nof_molecules,
+        batch_size=args.brownian_batch_size,
+    )
+
+
+def find_compatible_bit_pool_file(args: argparse.Namespace) -> Path:
+    nof = max(args.bit_pool_capacity, args.n_bits * args.n_emit_bit)
+    return _find_or_generate_pool(args, "Hits_bit_pool_indexed", nof, args.bit_pool_capacity)
 
 
 def find_compatible_distribution_file(args: argparse.Namespace) -> Path:
-    preferred = Path(args.sim_dir) / (
-        f"Hits_distribution_{raw_tag(args.distance, args.radius, args.diffusion_coef, args.step_time, args.memory)}"
-        f"_N{args.n_emit_distribution}.pt"
-    )
-    if preferred.exists():
-        return preferred
-
-    candidates = []
-    raw = raw_tag(args.distance, args.radius, args.diffusion_coef, args.step_time, args.memory)
-    candidates.extend(glob.glob(str(Path(args.sim_dir) / f"Hits_distribution_{raw}_N*.pt")))
-    candidates.extend(glob.glob(str(Path(args.sim_dir) / f"Hits_distribution_{raw}_TS*_MT*_N*.pt")))
-    candidates.extend(glob.glob(str(Path(args.sim_dir) / f"Hits_distribution_d_{float_tag(args.distance)}*.pt")))
-    if not candidates:
-        print(f"No compatible raw distribution file found. Generating: {preferred}")
-        return experiment_save_hits_indexed(
-            filename=preferred,
-            radius=args.radius,
-            total_time=args.memory,
-            step_time=args.step_time,
-            diffusion_coef=args.diffusion_coef,
-            distance=args.distance,
-            nof_molecules=args.n_emit_distribution,
-            batch_size=args.brownian_batch_size,
-        )
-    return Path(sorted(set(candidates))[-1])
+    return _find_or_generate_pool(args, "Hits_distribution", args.n_emit_distribution, args.n_emit_distribution)
 
 
 def ensure_legendre_library(args: argparse.Namespace, memory_taps: int) -> Path:
@@ -308,7 +347,7 @@ def ensure_legendre_library(args: argparse.Namespace, memory_taps: int) -> Path:
     return legendre_file
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--n-bits", type=int, default=100)
     p.add_argument("--n-emit-bit", type=int, default=250)
@@ -327,7 +366,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--leg-lam", type=float, default=1e-6)
     p.add_argument("--mu-bins", type=int, default=160)
     p.add_argument("--t-rel-bins", type=int, default=100)
-    p.add_argument("--legendre-lambda-env", type=float, default=1.0)
+    p.add_argument("--legendre-lambda-env", type=float, default=0.0)
     p.add_argument("--viterbi-lambda-env", type=float, default=0.0)
     p.add_argument(
         "--viterbi-memory-taps",
@@ -338,7 +377,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--sim-dir", default=str(DEFAULT_SIM_DIR))
     p.add_argument("--legendre-dir", default=str(DEFAULT_LEGENDRE_DIR))
     p.add_argument("--experiments-dir", default=str(DEFAULT_EXPERIMENTS_DIR))
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
 def main() -> None:

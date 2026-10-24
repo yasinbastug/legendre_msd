@@ -1,7 +1,9 @@
-numpy
-pandas
-matplotlib
-# torch is required only for the Brownian-motion simulator (main.py) and the
-# full Legendre-Viterbi detector (legendre_viterbi_full.py). The memoryless
-# Legendre, count-Viterbi, hybrid, and fixed-threshold detectors run without it.
-torch
+# Tested with Python 3.9 (numpy/pandas of that era, torch 2.8 + CUDA 12.8) and
+# Python 3.14 (numpy 2.5, pandas 3.1, matplotlib 3.11, torch 2.14).
+numpy>=1.24
+pandas>=1.5
+matplotlib>=3.6
+# Brownian simulator and the full Legendre-Viterbi detector. For CUDA, install
+# the build matching your driver from https://pytorch.org.
+torch>=2.0
+pytest>=7

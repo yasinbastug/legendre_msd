@@ -1,0 +1,38 @@
+{
+  "sweep": "gamma",
+  "column": "gamma",
+  "values": [
+    0.0,
+    1e-06,
+    0.0001,
+    0.01,
+    1.0,
+    10.0,
+    100.0
+  ],
+  "paper_operating_point": {
+    "L": 10,
+    "gamma": 1e-06,
+    "floor": 1e-12,
+    "B": 100,
+    "memory": 0.75,
+    "direction": 0.0
+  },
+  "ts": 0.2,
+  "channel_memory": 3.6,
+  "channel_memory_taps": 18,
+  "n_tx": 100,
+  "n_bits": 100000,
+  "seed": 2026,
+  "lambda_0": 7.0854,
+  "noise_ratio_other_sweeps": 0.0,
+  "detectors": [
+    "legendre",
+    "viterbi",
+    "legendre_viterbi",
+    "legendre_viterbi_full",
+    "fixed_threshold"
+  ],
+  "max_viterbi_taps": 25,
+  "bit_pool": "Hits_bit_pool_indexed_d_12p5_r5_D79p4_dt0p0001_MEM3p6_N10000000.pt"
+}

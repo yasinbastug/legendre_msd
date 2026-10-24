@@ -1,0 +1,45 @@
+{
+  "sweep": "chtarget",
+  "column": "channel_fhit_target",
+  "values": [
+    0.8999,
+    0.85,
+    0.8,
+    0.75,
+    0.7,
+    0.65,
+    0.6
+  ],
+  "paper_operating_point": {
+    "L": 10,
+    "gamma": 1e-06,
+    "floor": 1e-12,
+    "B": 100,
+    "memory": 0.75,
+    "direction": 0.0,
+    "distance": 12.5,
+    "radius": 5.0,
+    "diffusion": 79.4
+  },
+  "ts": 0.2,
+  "channel_memory": 3.6,
+  "channel_memory_taps": null,
+  "paper_detector_taps": null,
+  "fixed_detector_taps": 18,
+  "geometry_max_detector_taps": null,
+  "tail_background": false,
+  "n_tx": 100,
+  "n_bits": 100000,
+  "seed": 2026,
+  "lambda_0": null,
+  "noise_ratio_other_sweeps": 0.0,
+  "detectors": [
+    "legendre",
+    "viterbi",
+    "legendre_viterbi",
+    "legendre_viterbi_full",
+    "fixed_threshold"
+  ],
+  "max_viterbi_taps": 25,
+  "bit_pool": null
+}

@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the paper below."
+title: "Legendre-MSD: receiver-surface hit patterns for molecular signal detection"
+type: software
+authors:
+  - family-names: Bastug
+    given-names: Yasin
+    affiliation: "NETLAB, Department of Computer Engineering, Bogazici University"
+  - family-names: Ozbey
+    given-names: Erencem
+    affiliation: "NETLAB, Department of Computer Engineering, Bogazici University"
+    orcid: "https://orcid.org/0009-0009-9281-4856"
+  - family-names: Yilmaz
+    given-names: H. Birkan
+    affiliation: "NETLAB, Department of Computer Engineering, Bogazici University"
+repository-code: "https://github.com/yasinbastug/legendre_msd"
+preferred-citation:
+  type: article
+  title: "Receiver-Surface Hit Patterns via Legendre Approximation for Molecular Signal Detection"
+  authors:
+    - family-names: Bastug
+      given-names: Yasin
+    - family-names: Ozbey
+      given-names: Erencem
+    - family-names: Yilmaz
+      given-names: H. Birkan
+  journal: "IEEE Communications Letters"
+  status: submitted
+  year: 2026

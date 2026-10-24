@@ -163,22 +163,20 @@ def _extract_bins_and_z(
     u = xyz / norms[:, None]
     z = np.clip(u @ axis, -1.0, 1.0)
 
-    if "bin" in obs:
-        b_idx = np.asarray(obs["bin"], dtype=np.int64)
-    elif "bins" in obs:
-        b_idx = np.asarray(obs["bins"], dtype=np.int64)
+    if "bin" in obs or "bins" in obs:
+        b_idx = np.asarray(obs["bin"] if "bin" in obs else obs["bins"], dtype=np.int64)
+        if b_idx.shape[0] != n_rx:
+            raise ValueError("Bin array must have the same length as obs['xyz'].")
+        # Convert likely 1-based bin indices to 0-based. Only for caller-supplied
+        # bins: bins computed from t_rel below are always 0-based, and a symbol
+        # with an empty first bin must not be shifted.
+        if b_idx.size and b_idx.min() >= 1 and b_idx.max() <= B:
+            b_idx = b_idx - 1
     else:
         t_rel = np.asarray(obs["t_rel"], dtype=np.float64)
         if t_rel.shape[0] != n_rx:
             raise ValueError("obs['t_rel'] must have the same length as obs['xyz'].")
         b_idx = np.floor(t_rel / Ts * B).astype(np.int64)
-
-    if b_idx.shape[0] != n_rx:
-        raise ValueError("Bin array must have the same length as obs['xyz'].")
-
-    # Convert likely 1-based bin indices to 0-based.
-    if b_idx.size and b_idx.min() >= 1 and b_idx.max() <= B:
-        b_idx = b_idx - 1
 
     b_idx = np.clip(b_idx, 0, B - 1)
     return b_idx, z

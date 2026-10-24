@@ -2,11 +2,14 @@
 
 import math
 import os
-from typing import Iterable
 
 import numpy as np
 import pandas as pd
 EPS = 1e-300
+DEFAULT_EPS_FLOOR = 1e-12
+
+# np.trapz was removed in NumPy 2.4; np.trapezoid only exists from 2.0.
+_trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz")
 
 
 def make_legendre_library_tag(ts, memory_taps, memory, distance, radius, diffusion_coef, step_time):
@@ -75,17 +78,17 @@ def fit_legendre_ls(p_mu, mu_grid, L, lam):
 
     return np.linalg.solve(A, b)
 
-def project_pdf_and_scale_from_coeffs(coeff, mu_grid, L, eps_floor=1e-12):
+def project_pdf_and_scale_from_coeffs(coeff, mu_grid, L, eps_floor=DEFAULT_EPS_FLOOR):
     X = legendre_basis(mu_grid, L)
 
     raw = X @ coeff
     raw = np.maximum(raw, eps_floor)
 
-    Z = np.trapz(raw, mu_grid)
+    Z = _trapz(raw, mu_grid)
 
     if Z <= 0:
         raw = np.ones_like(mu_grid)
-        Z = np.trapz(raw, mu_grid)
+        Z = _trapz(raw, mu_grid)
 
     return float(1.0 / max(Z, 1e-15))
 
@@ -243,7 +246,7 @@ def build_legendre_library_from_distribution_file(
         tap_counts=tap_counts,
         tx_axis=np.asarray(tx_axis, dtype=np.float64),
         source_hit_file=str(hit_file),
-        hyperparam_tag=str(make_legendre_tag()) if "make_legendre_tag" in globals() else "",
+        hyperparam_tag=f"L{int(L)}_lam{float(lam):g}_B{int(n_t_bins)}_mu{int(n_mu_bins)}",
     )
 
     print("\n[OK] Saved Legendre library:")
@@ -334,6 +337,52 @@ def load_legendre_library(npz_file):
         "hyperparam_tag": str(Z["hyperparam_tag"]) if "hyperparam_tag" in Z.files else "",
     }
 
+def with_eps_floor(leglib, eps_floor):
+    """
+    Return a copy of leglib whose truncated densities use floor eps_floor.
+
+    The renormalizing scales of Eq. (14) depend on the floor, so they are
+    recomputed from the stored coefficients on the library's mu grid.
+    """
+    eps_floor = float(eps_floor)
+    if eps_floor <= 0:
+        raise ValueError("eps_floor must be positive.")
+
+    mu_edges = leglib["mu_edges"]
+    mu_grid = 0.5 * (mu_edges[:-1] + mu_edges[1:])
+    L = int(leglib["L"])
+    coeffs = leglib["coeffs"]
+
+    scales = np.empty(coeffs.shape[:2], dtype=np.float64)
+    for tap in range(coeffs.shape[0]):
+        for j in range(coeffs.shape[1]):
+            scales[tap, j] = project_pdf_and_scale_from_coeffs(
+                coeff=coeffs[tap, j],
+                mu_grid=mu_grid,
+                L=L,
+                eps_floor=eps_floor,
+            )
+
+    out = dict(leglib)
+    out["scales"] = scales
+    out["eps_floor"] = eps_floor
+    return out
+
+def truncate_legendre_library(leglib, memory_taps):
+    """
+    Return a copy of leglib that keeps only the first memory_taps taps.
+    """
+    K = int(memory_taps)
+    if not 1 <= K <= int(leglib["memory_taps"]):
+        raise ValueError(f"memory_taps must be in [1, {leglib['memory_taps']}], got {K}.")
+
+    out = dict(leglib)
+    for key in ("coeffs", "scales", "rel_mass", "tap_prob", "tap_counts"):
+        out[key] = leglib[key][:K]
+    out["memory_taps"] = K
+    out["memory"] = K * float(leglib["ts"])
+    return out
+
 def log_poisson_pmf(k, lam):
     """
     log Poisson(k; lambda)
@@ -399,7 +448,8 @@ def legendre_surface_density_bin(
 
     raw = np.sum(P * coeffs[bin_idx], axis=1)
 
-    hbar = scales[bin_idx] * np.maximum(raw, 1e-12)
+    eps_floor = float(leglib.get("eps_floor", DEFAULT_EPS_FLOOR))
+    hbar = scales[bin_idx] * np.maximum(raw, eps_floor)
 
     f_omega = hbar / (2.0 * np.pi)
 
