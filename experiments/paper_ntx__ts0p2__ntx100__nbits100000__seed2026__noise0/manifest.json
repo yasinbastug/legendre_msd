@@ -1,0 +1,51 @@
+{
+  "sweep": "ntx",
+  "column": "N_Tx",
+  "values": [
+    25.0,
+    50.0,
+    75.0,
+    100.0,
+    125.0,
+    150.0,
+    175.0,
+    200.0,
+    225.0,
+    250.0
+  ],
+  "paper_operating_point": {
+    "L": 10,
+    "gamma": 1e-06,
+    "floor": 1e-12,
+    "B": 100,
+    "memory": 0.75,
+    "direction": 0.0,
+    "distance": 12.5,
+    "radius": 5.0,
+    "diffusion": 79.4,
+    "chtarget": 0.75
+  },
+  "ts": 0.2,
+  "channel_memory": 3.6,
+  "channel_memory_taps": null,
+  "paper_detector_taps": null,
+  "fixed_detector_taps": null,
+  "geometry_max_detector_taps": null,
+  "channel_target": null,
+  "tail_background": false,
+  "threshold_curves": true,
+  "n_tx": 100,
+  "n_bits": 100000,
+  "seed": 2026,
+  "lambda_0": null,
+  "noise_ratio_other_sweeps": 0.0,
+  "detectors": [
+    "legendre",
+    "viterbi",
+    "legendre_viterbi",
+    "legendre_viterbi_full",
+    "fixed_threshold"
+  ],
+  "max_viterbi_taps": 25,
+  "bit_pool": null
+}
