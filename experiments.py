@@ -151,8 +151,24 @@ def parse_cli(argv: list[str] | None = None) -> argparse.Namespace:
                    help="also store P01/P10 threshold curves (always on for ntx)")
     p.add_argument("--n-emit-distribution", type=int, default=1_000_000,
                    help="molecules simulated for the Legendre library")
+    p.add_argument("--L", type=int, default=None, help=f"Legendre order at the operating point (default {PAPER['L']})")
+    p.add_argument("--gamma", type=float, default=None, help=f"ridge penalty at the operating point (default {PAPER['gamma']:g})")
+    p.add_argument("--B", type=int, default=None, help=f"arrival-time bins at the operating point (default {PAPER['B']})")
     p.add_argument("--tag", default="", help="extra suffix for the experiment folder")
-    return p.parse_args(argv)
+    cli = p.parse_args(argv)
+    # Operating-point overrides apply to every point of the sweep and name the folder.
+    for key in ("L", "gamma", "B"):
+        if getattr(cli, key) is not None:
+            PAPER[key] = getattr(cli, key)
+    return cli
+
+
+def operating_point_tag(cli: argparse.Namespace) -> str:
+    """Folder suffix for the operating-point overrides, e.g. __B10__gamma1."""
+    return "".join(
+        f"__{key}{float_tag(getattr(cli, key)) if key == 'gamma' else getattr(cli, key)}"
+        for key in ("L", "B", "gamma") if getattr(cli, key, None) is not None
+    )
 
 
 def channel_memory(cli: argparse.Namespace, args: argparse.Namespace) -> float:
@@ -221,6 +237,7 @@ def experiment_dir(cli: argparse.Namespace, sweep: str, create: bool = True) -> 
         tag += f"__K{cli.detector_taps}"
     if cli.tail_background:
         tag += "__tailbg"
+    tag += operating_point_tag(cli)
     if cli.tag:
         tag += f"__{cli.tag}"
     path = gf.PROJECT_ROOT / "experiments" / tag

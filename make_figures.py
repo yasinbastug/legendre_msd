@@ -14,17 +14,20 @@ comparison plots.
 
 By default the newest matching experiment folder is used for each sweep; pass
 --match to pick a variant, e.g. --match cht0p9__tailbg for the runs with a 90%
-channel and the ISI tail modelled as background.
+channel and the ISI tail modelled as background. A variant's paper figures are
+saved under plots/<match>/.
 
 Usage:
     python make_figures.py
     python make_figures.py --match cht0p9__tailbg
+    python make_figures.py --match B10__gamma1     # runs with --B 10 --gamma 1
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -36,11 +39,19 @@ from experiments import SWEEPS, parse_cli, plot_chtarget_comparison, plot_sweep
 FIGURE_2_N_TX = 100
 
 
+# Folder parts written by experiments.py --L/--gamma/--B (operating-point variants).
+OPERATING_POINT_PART = re.compile(r"^(L\d+|gamma\S+|B\d+)$")
+
+
 def newest_summary(sweep_prefix: str, match: str) -> Path | None:
-    """Newest experiments/<sweep_prefix>__*<match>*/summary.csv, or None."""
+    """Newest experiments/<sweep_prefix>__*<match>*/summary.csv, or None.
+
+    Without --match, operating-point variants (__B10, __gamma1, ...) are skipped.
+    """
     candidates = [
         p for p in (gf.PROJECT_ROOT / "experiments").glob(f"{sweep_prefix}__*/summary.csv")
         if match in p.parent.name
+        and (match or not any(OPERATING_POINT_PART.match(part) for part in p.parent.name.split("__")[1:]))
     ]
     return max(candidates, key=os.path.getmtime) if candidates else None
 
@@ -50,7 +61,8 @@ def main() -> None:
     parser.add_argument("--match", default="", help="substring the experiment folder names must contain")
     opts = parser.parse_args()
 
-    plots_dir = gf.maybe_make_out_dir(gf.PROJECT_ROOT / "plots")
+    # Paper figures of a variant go to plots/<match>/ so the default ones are kept.
+    plots_dir = gf.maybe_make_out_dir(gf.PROJECT_ROOT / "plots" / opts.match if opts.match else gf.PROJECT_ROOT / "plots")
     saved = []
 
     ntx_csv = newest_summary("paper_ntx", opts.match)

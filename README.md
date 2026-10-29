@@ -104,6 +104,16 @@ python make_figures.py --match cht0p9__tailbg
 
 `python experiments.py plot <sweep> [same options]` redraws one sweep from its CSV.
 
+`--L`, `--B` and `--gamma` change the Legendre operating point for a whole sweep
+and add it to the folder name; `make_figures.py` then draws that variant's paper
+figures into `plots/<match>/`:
+
+```bash
+python experiments.py ntx --B 10 --gamma 1
+python experiments.py ts --B 10 --gamma 1
+python make_figures.py --match B10__gamma1
+```
+
 ## Repository layout
 
 | Path | Contents |
