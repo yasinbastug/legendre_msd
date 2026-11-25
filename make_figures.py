@@ -10,7 +10,7 @@ Reads the summary CSVs written by experiments.py and saves, under plots/:
 
 plus the CSVs behind each figure (file names match the LaTeX source), and one
 plot per experiment folder (plots/<experiment>.pdf), including the chtarget
-comparison plots.
+comparison plots. Every PDF is also saved as vector EPS under the same name.
 
 By default the newest matching experiment folder is used for each sweep; pass
 --match to pick a variant, e.g. --match cht0p9__tailbg for the runs with a 90%
@@ -101,6 +101,7 @@ def main() -> None:
         reviewer_plot = plot_sweep(noise_csv, "noise")
         out = plots_dir / "figure_4_ber_vs_noise.pdf"
         shutil.copyfile(reviewer_plot, out)
+        shutil.copyfile(reviewer_plot.with_suffix(".eps"), out.with_suffix(".eps"))
         saved.append(out)
 
     # One plot per experiment folder (<prefix>_<sweep>__<options>).

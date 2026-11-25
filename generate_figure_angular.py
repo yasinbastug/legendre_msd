@@ -48,6 +48,7 @@ DEFAULT_OUT = SCRIPT_DIR / "plots" / "figure_angular_surface_density_5taps_v3.pd
 
 sys.path.insert(0, str(SCRIPT_DIR))
 from legendre import _trapz, load_hits_file  # noqa: E402
+from pipeline import save_figure  # noqa: E402
 from main import (  # noqa: E402
     experiment_save_hits_indexed,
     float_tag,
@@ -629,14 +630,14 @@ def main() -> None:
 
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(out, format="pdf", bbox_inches="tight")
-
     png_out = out.with_suffix(".png")
     fig.savefig(png_out, dpi=200, bbox_inches="tight")
+    save_figure(fig, out, bbox_inches="tight")  # PDF and EPS
 
     plt.close(fig)
 
     print(f"\nSaved {out}")
+    print(f"Saved {out.with_suffix('.eps')}")
     print(f"Saved {png_out}")
 
 

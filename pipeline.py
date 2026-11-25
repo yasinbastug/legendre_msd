@@ -404,6 +404,79 @@ def maybe_make_out_dir(path: str | Path) -> Path:
     return out_dir
 
 
+def _flatten_alpha_on_white(fig) -> None:
+    """Blend every semi-transparent colour onto white, in place.
+
+    The PostScript backend has no transparency and would draw such artists
+    fully opaque (e.g. faint grid lines turn solid). Over a white background
+    the blended opaque colour looks the same.
+    """
+    import matplotlib.colors as mcolors
+    from matplotlib.collections import Collection
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    from matplotlib.text import Text
+
+    def blend(colors):
+        rgba = np.atleast_2d(mcolors.to_rgba_array(colors)).copy()
+        a = rgba[:, 3:4]
+        rgba[:, :3] = a * rgba[:, :3] + (1.0 - a)
+        rgba[:, 3] = 1.0
+        return rgba
+
+    # Grid lines are drawn with their axis, i.e. over tick marks, bars and error
+    # bars. Harmless while faint, visible once opaque: redraw them at the back.
+    for ax in fig.axes:
+        for axis in (ax.xaxis, ax.yaxis):
+            for tick in axis.get_major_ticks() + axis.get_minor_ticks():
+                grid = tick.gridline
+                if not grid.get_visible():
+                    continue
+                copy = Line2D(
+                    grid.get_xdata(), grid.get_ydata(), transform=grid.get_transform(),
+                    color=grid.get_color(), alpha=grid.get_alpha(), linewidth=grid.get_linewidth(),
+                    linestyle=grid.get_linestyle(), zorder=0.5,
+                )
+                ax.add_artist(copy)
+                grid.set_visible(False)
+
+    for artist in fig.findobj():
+        if isinstance(artist, Line2D):
+            alpha = artist.get_alpha()
+            for get, set_ in ((artist.get_color, artist.set_color),
+                              (artist.get_markerfacecolor, artist.set_markerfacecolor),
+                              (artist.get_markeredgecolor, artist.set_markeredgecolor)):
+                color = get()
+                if isinstance(color, str) and color.lower() == "none":
+                    continue
+                set_(blend(mcolors.to_rgba(color, alpha))[0])
+            artist.set_alpha(None)
+        elif isinstance(artist, (Collection, Patch)):
+            face, edge = artist.get_facecolor(), artist.get_edgecolor()
+            artist.set_alpha(None)
+            # Fully transparent faces/edges ("none") stay invisible.
+            for colors, set_ in ((face, artist.set_facecolor), (edge, artist.set_edgecolor)):
+                rgba = np.atleast_2d(mcolors.to_rgba_array(colors))
+                if rgba.size and np.all(rgba[:, 3] == 0):
+                    continue
+                set_(blend(rgba) if isinstance(artist, Collection) else blend(rgba)[0])
+        elif isinstance(artist, Text):
+            artist.set_color(blend(mcolors.to_rgba(artist.get_color(), artist.get_alpha()))[0])
+            artist.set_alpha(None)
+
+
+def save_figure(fig, out_file: str | Path, **savefig_kwargs) -> Path:
+    """Save a figure as PDF and, next to it, as vector EPS (same name, .eps)."""
+    import matplotlib
+
+    out_file = Path(out_file)
+    fig.savefig(out_file, format="pdf", **savefig_kwargs)
+    _flatten_alpha_on_white(fig)
+    with matplotlib.rc_context({"ps.fonttype": 42}):  # embedded fonts, no Type 3
+        fig.savefig(out_file.with_suffix(".eps"), format="eps", **savefig_kwargs)
+    return out_file
+
+
 def float_tag(x: float) -> str:
     return f"{float(x):.8g}".replace("-", "m").replace(".", "p").replace("+", "")
 
@@ -701,7 +774,7 @@ def save_figure_1_ber_vs_ntx(comparison: pd.DataFrame, out_file: str | Path) -> 
     )
 
     fig.tight_layout()
-    fig.savefig(out_file, format="pdf", bbox_inches="tight")
+    save_figure(fig, out_file, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -791,7 +864,7 @@ def save_figure_2_false_alarm_vs_missed_detection(
     ax.legend(frameon=True, fontsize=14, handlelength=2.2, borderpad=0.7)
 
     fig.tight_layout()
-    fig.savefig(out_file, format="pdf", bbox_inches="tight")
+    save_figure(fig, out_file, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -858,7 +931,7 @@ def save_figure_3_ber_vs_ts(ts_sweep_df: pd.DataFrame, out_file: str | Path) -> 
     )
 
     fig.tight_layout()
-    fig.savefig(out_file, format="pdf", bbox_inches="tight")
+    save_figure(fig, out_file, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -896,7 +969,7 @@ def save_figure_4_runtime(comparison: pd.DataFrame, out_file: str | Path) -> Non
     apply_publication_style(ax, grid_axis="y")
 
     fig.tight_layout()
-    fig.savefig(out_file, format="pdf", bbox_inches="tight")
+    save_figure(fig, out_file, bbox_inches="tight")
     plt.close(fig)
 
 

@@ -572,7 +572,7 @@ def _finish_axes(ax, fig, out_file: Path, *, legend_ncol: int = 3) -> None:
             frameon=False, fontsize=12, handlelength=2.2, columnspacing=1.2,
         )
     fig.tight_layout()
-    fig.savefig(out_file, format="pdf", bbox_inches="tight")
+    gf.save_figure(fig, out_file, bbox_inches="tight")
     plt.close(fig)
     print("Saved", out_file)
 
@@ -764,7 +764,7 @@ def plot_chtarget_comparison(cli: argparse.Namespace) -> Path:
     ax.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.5, 1.01), ncol=3,
               frameon=False, fontsize=12, handlelength=2.2, columnspacing=1.2)
     fig.tight_layout()
-    fig.savefig(out_file, format="pdf", bbox_inches="tight")
+    gf.save_figure(fig, out_file, bbox_inches="tight")
     plt.close(fig)
     print("Saved", out_file)
     return out_file
