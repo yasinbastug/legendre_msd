@@ -56,18 +56,18 @@ from main import (  # noqa: E402
     raw_tag,
 )
 
-# User palette: dark green -> sage olive -> amber -> orange -> muted purple.
+# Paper palette (Fig. 1): dark green -> sage olive -> orange -> red -> purple.
 TAP_COLORS = (
     "#0B6E4F",  # dark green     (0 - Ts)
     "#869468",  # sage olive     (Ts - 2Ts)
-    "#D9A21B",  # amber          (2Ts - 3Ts)
-    "#D96B1C",  # orange         (3Ts - 4Ts)
-    "#7B5A9A",  # muted purple   (4Ts - 5Ts)
-    "#5A3F78",  # deeper purple  (optional 6th tap)
+    "#C56A1A",  # orange         (2Ts - 3Ts)
+    "#A33B2D",  # red            (3Ts - 4Ts)
+    "#4F3A6B",  # purple         (4Ts - 5Ts)
+    "#3A2A52",  # deeper purple  (optional 6th tap)
 )
 
-# Later taps are slightly more transparent / thinner so early taps stay dominant.
-TAP_SCATTER_ALPHAS = (0.90, 0.85, 0.80, 0.75, 0.70, 0.65)
+# Opaque hits for every tap, as in the paper; line width still decreases with tap.
+TAP_SCATTER_ALPHAS = (1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
 TAP_LINE_WIDTHS = (3.0, 2.6, 2.3, 2.0, 1.8, 1.6)
 
 # Typography and axis-size controls.
