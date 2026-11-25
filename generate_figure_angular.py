@@ -56,10 +56,10 @@ from main import (  # noqa: E402
     raw_tag,
 )
 
-# Paper palette (Fig. 1): dark green -> sage olive -> orange -> red -> purple.
+# Paper palette (Fig. 1): dark green -> muted olive -> orange -> red -> purple.
 TAP_COLORS = (
     "#0B6E4F",  # dark green     (0 - Ts)
-    "#869468",  # sage olive     (Ts - 2Ts)
+    "#62693B",  # muted olive    (Ts - 2Ts)
     "#C56A1A",  # orange         (2Ts - 3Ts)
     "#A33B2D",  # red            (3Ts - 4Ts)
     "#4F3A6B",  # purple         (4Ts - 5Ts)
@@ -507,14 +507,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--max-hits-per-tap",
         type=int,
-        default=300,
+        default=250,
         help="Cap on schematic scatter points per tap after fraction sampling.",
     )
     p.add_argument(
         "--scatter-fraction",
         type=float,
-        default=0.5,
-        help="Fraction of molecules randomly kept for the schematic scatter (default 1/2).",
+        default=0.3,
+        help="Fraction of molecules randomly kept for the schematic scatter.",
     )
     p.add_argument(
         "--kde-bw-z",
