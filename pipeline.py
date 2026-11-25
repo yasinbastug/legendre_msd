@@ -920,15 +920,8 @@ def save_figure_3_ber_vs_ts(ts_sweep_df: pd.DataFrame, out_file: str | Path) -> 
     )
     ax.xaxis.label.set_size(20)
     ax.yaxis.label.set_size(20)
-    ax.legend(
-        loc="lower left",
-        ncol=1,
-        frameon=True,
-        fontsize=15,
-        handlelength=2.2,
-        borderpad=0.5,
-        labelspacing=0.4,
-    )
+    # Compact legend in the upper right, as in the paper (Fig. 3).
+    ax.legend(loc="upper right", frameon=True, fontsize=13, handlelength=2.2, borderpad=0.6, labelspacing=0.4)
 
     fig.tight_layout()
     save_figure(fig, out_file, bbox_inches="tight")
