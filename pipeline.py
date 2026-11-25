@@ -804,7 +804,8 @@ def save_figure_2_false_alarm_vs_missed_detection(
             f"Available N_Tx values are: {available}"
         )
 
-    fig, ax = plt.subplots(figsize=(5.6, 5.6))
+    # Same size as the BER-vs-T_s figure, as in the paper (Fig. 4).
+    fig, ax = plt.subplots(figsize=(8.4, 5.4))
 
     for detector in DETECTOR_ORDER:
         df_det = df_points[df_points["detector"] == detector]
@@ -856,7 +857,6 @@ def save_figure_2_false_alarm_vs_missed_detection(
     )
     ax.set_xlim(left=0.0, right=min(1.0, max_axis * 1.25 + 1e-3))
     ax.set_ylim(bottom=0.0, top=min(1.0, max_axis * 1.25 + 1e-3))
-    ax.set_aspect("equal", adjustable="box")
     ax.xaxis.set_major_formatter(
         FuncFormatter(lambda value, position: "" if np.isclose(value, 0.0) else f"{value:.1f}")
     )

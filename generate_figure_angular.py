@@ -279,12 +279,13 @@ def render_geometry_panel(
         path_effects=[pe.withStroke(linewidth=4, foreground="white")],
     )
 
-    # Viewport: roomier padding (older proportions).
+    # Viewport: horizontal padding for Tx and arrow; vertically just the sphere,
+    # so the figure keeps the paper's wide proportions (Fig. 1).
     ax.invert_xaxis()
     ax.set_aspect("equal")
     margin = display_radius * 0.28
 
-    max_y = max(display_radius + margin, abs(tx_y) + 1.1)
+    max_y = max(display_radius * 1.02, abs(tx_y) + 1.1)
 
     ax.set_xlim(display_distance + margin, -(display_radius + margin))
     ax.set_ylim(-max_y, max_y)
@@ -590,7 +591,7 @@ def main() -> None:
     fig, (ax_left, ax_right) = plt.subplots(
         1,
         2,
-        figsize=(14, 6),
+        figsize=(14, 4.8),
         gridspec_kw={"width_ratios": [1.0, 1.05], "wspace": 0.08},
     )
 
